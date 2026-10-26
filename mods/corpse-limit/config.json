@@ -1,0 +1,8 @@
+{
+  "enabled": true,
+  "lifetime_seconds": 60.0,
+  "max_distance": 0.0,
+  "max_corpses": 24,
+  "poll_seconds": 0.5,
+  "dry_run": false
+}

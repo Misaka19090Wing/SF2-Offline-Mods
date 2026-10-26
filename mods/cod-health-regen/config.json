@@ -1,0 +1,8 @@
+{
+  "enabled": true,
+  "regen_delay_seconds": 4.0,
+  "regen_per_second": 25.0,
+  "tick_hz": 10.0,
+  "log_damage": true,
+  "dry_run": false
+}
