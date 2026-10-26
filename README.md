@@ -9,6 +9,18 @@
 | [corpse-flinch](mods/corpse-flinch/) | 1.11.2 | 子弹 / 近战 / 飞斧把尸体真的打飞，方向力度来自游戏自己算出的命中 | 是，与原生 AI worker 分时让位 |
 | [corpse-limit](mods/corpse-limit/) | 1.0.1 | 控制尸体存在时长、距离玩家多远的清掉、地图上最多留几具 | 否 |
 
+## 来源与许可
+
+| Mod | 制作 | 许可 |
+| --- | --- | --- |
+| cod-health-regen | DeepSeek | MIT |
+| corpse-limit | DeepSeek | MIT |
+| corpse-flinch | 原版：[正直的普鲁士军官](https://space.bilibili.com/22079765)（仅网盘发布，未附许可）；1.11.0–1.11.2 的修改由 DeepSeek 完成 | 原版未授权；本仓库的改动按 MIT |
+
+corpse-flinch 的原版作者没有声明任何许可，因此**原版代码的版权仍归原作者**，不在本仓库 MIT 的覆盖范围内；
+本仓库包含的是 1.11.0–1.11.2 的改动（原生 AI worker 分时让位、刀战房、异形 PVE）。要二次分发原版，
+请先到原作者的发布页确认。
+
 ## 安装
 
 每个 mod 目录下都有 `安装.cmd`，或手动：
