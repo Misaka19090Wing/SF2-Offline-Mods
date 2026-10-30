@@ -5,5 +5,6 @@
   "tick_hz": 10.0,
   "log_damage": true,
   "dry_run": false,
-  "bots": false
+  "bots": false,
+  "bots_pve_only": true
 }

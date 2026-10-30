@@ -8,6 +8,25 @@ it the local player's (Health, HealthMax) on every tick and writes back whatever
 
 MAX_PLAUSIBLE_HEALTH = 100000
 
+# Fallback only: the client's local_pve_allies.GAME_PREFIXES owns this list.
+PVE_PREFIXES = ('sfsurvivalgame', 'sfdefencegame', 'sfzombiesurvivalgame')
+_PVE_CACHE = []
+
+
+def pve_prefixes():
+    if not _PVE_CACHE:
+        try:
+            from local_pve_allies import GAME_PREFIXES
+            _PVE_CACHE.append(tuple(str(p).casefold() for p in GAME_PREFIXES) or PVE_PREFIXES)
+        except Exception:                      # noqa: BLE001 - client module may move
+            _PVE_CACHE.append(PVE_PREFIXES)
+    return _PVE_CACHE[0]
+
+
+def is_pve(game_class):
+    """True for the alien survival/defence modes (the only ones with PVE allies)."""
+    return bool(game_class) and game_class.casefold().startswith(pve_prefixes())
+
 
 def bot_targets(rows, player_pawn, player_team):
     """Live teammates worth healing.

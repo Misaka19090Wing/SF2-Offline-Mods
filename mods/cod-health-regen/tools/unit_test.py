@@ -13,7 +13,7 @@ ROOT = HERE.parent
 sys.path.insert(0, str(ROOT))
 
 from sf2mod.game import Fields                      # noqa: E402
-from sf2mod.regen import Regen, bot_targets        # noqa: E402
+from sf2mod.regen import Regen, bot_targets, is_pve  # noqa: E402
 import health_regen                                # noqa: E402
 
 
@@ -170,55 +170,87 @@ def test_bot_targets():
     print('[OK ] bots: only living teammates are healed')
 
 
-def test_bots_pass_runs():
-    """step_bots must actually execute: a missing import there cost a game round trip."""
-    class Log:
-        def __init__(self):
-            self.events = []
+def test_pve_predicate():
+    assert is_pve('SFSurvivalGame_0') and is_pve('SFZombieSurvivalGame_1')
+    assert is_pve('SFDefenceGame_2')
+    assert not is_pve('SFAITeamDeathGame_0') and not is_pve('') and not is_pve(None)
+    print('[OK ] pve: survival/defence are PVE, team deathmatch is not')
 
-        def emit(self, event, **fields):
-            self.events.append((event, fields))
 
-    class Fields:
-        def __init__(self, rows, teams):
-            self.rows, self.teams = rows, teams
-            self.written = {}
+def _bots_worker(config, log):
+    """A Worker with a stubbed Player/Fields: enough to drive step_bots offline."""
+    return health_regen.Worker(Path('.'), dict(health_regen.DEFAULTS, **config), log)
 
-        def read(self, address):
-            return self.rows[address]
 
-        def team_of(self, address):
-            return self.teams.get(address)
+class _Log:
+    def __init__(self):
+        self.events = []
 
-        def write(self, address, value):
-            self.written[address] = value
+    def emit(self, event, **fields):
+        self.events.append((event, fields))
 
-    class Player:
-        def __init__(self, addresses):
-            self.addresses = addresses
 
-        def actors(self):
-            return self.addresses
+class _Fields:
+    def __init__(self, rows, teams):
+        self.rows, self.teams, self.written = rows, teams, {}
 
-        def kind(self, address):
-            return 'SFPawn'
+    def read(self, address):
+        return self.rows[address]
 
-    config = dict(health_regen.DEFAULTS, bots=True, dry_run=False,
-                  regen_delay_seconds=0.0, regen_per_second=50.0)
-    log = Log()
-    worker = health_regen.Worker(ROOT, config, log)
-    worker.pawn = 0xA6                       # the player's own pawn
-    fields = Fields({0xA1: (30, 100), 0xA2: (30, 100), 0xA6: (100, 100)},
-                    {0xA1: 0, 0xA2: 1, 0xA6: 0})
-    player = Player([0xA1, 0xA2, 0xA6])
-    worker.step_bots(player, fields, 1000.0)     # first tick only learns the state
+    def team_of(self, address):
+        return self.teams.get(address)
+
+    def game_of(self, world):
+        return 0x999
+
+    def write(self, address, value):
+        self.written[address] = value
+
+
+class _Player:
+    def __init__(self, addresses, game_class='SFSurvivalGame_0'):
+        self.addresses, self.world, self.game_class = addresses, 0x1234, game_class
+
+    def actors(self):
+        return self.addresses
+
+    def kind(self, address):
+        return self.game_class if address == 0x999 else 'SFPawn'
+
+
+def _drive(config, game_class='SFSurvivalGame_0'):
+    log = _Log()
+    worker = _bots_worker(dict(bots=True, dry_run=False, regen_delay_seconds=0.0,
+                               regen_per_second=50.0, **config), log)
+    worker.pawn = 0xA6
+    fields = _Fields({0xA1: (30, 100), 0xA2: (30, 100), 0xA6: (100, 100)},
+                     {0xA1: 0, 0xA2: 1, 0xA6: 0})
+    player = _Player([0xA1, 0xA2, 0xA6], game_class)
+    worker.step_bots(player, fields, 1000.0)
     worker.last_bot_scan = 0.0
-    worker.step_bots(player, fields, 1000.2)     # now it may write
+    worker.step_bots(player, fields, 1000.2)
+    return fields, log
+
+
+def test_bots_pass_runs():
+    """step_bots must execute and heal exactly the teammates."""
+    fields, log = _drive({'bots_pve_only': False})
     assert 0xA1 in fields.written and fields.written[0xA1] > 30, fields.written
     assert 0xA2 not in fields.written, 'the other team was healed'
     assert 0xA6 not in fields.written, 'the player was healed by the bots pass'
     assert any(event == 'regen-bot' for event, _ in log.events), log.events
-    print('[OK ] bots: step_bots heals a teammate and nobody else')
+    print('[OK ] bots: PVE gate off -> only teammates are healed')
+
+
+def test_bots_pve_gate():
+    """bots_pve_only keeps teammates unhealed outside the PVE modes."""
+    fields, log = _drive({'bots_pve_only': True}, game_class='SFAITeamDeathGame_0')
+    assert not fields.written, fields.written
+    scan = [f for e, f in log.events if e == 'bots-scan']
+    assert scan and scan[-1]['pve'] is False, scan
+    fields, _ = _drive({'bots_pve_only': True}, game_class='SFSurvivalGame_0')
+    assert 0xA1 in fields.written, 'PVE mode should heal teammates'
+    print('[OK ] bots: bots_pve_only heals teammates in PVE only')
 
 
 def test_config_matches_defaults():

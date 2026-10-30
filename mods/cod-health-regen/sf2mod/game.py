@@ -30,6 +30,7 @@ CONTROLLER_PLAYER = 'Engine.PlayerController.Player'
 PAWN_PRI = 'Engine.Pawn.PlayerReplicationInfo'
 PAWN_CONTROLLER = 'Engine.Pawn.Controller'
 CONTROLLER_PRI = 'Engine.Controller.PlayerReplicationInfo'
+GAME = 'Engine.WorldInfo.Game'
 PRI_TEAM = 'Engine.PlayerReplicationInfo.Team'
 TEAM_INDEX = 'Engine.TeamInfo.TeamIndex'
 OBJECT_SCAN_INTERVAL = 3.0  # a full GObjects sweep costs ~0.2 s; only when pawnless
@@ -37,7 +38,8 @@ OBJECT_SCAN_INTERVAL = 3.0  # a full GObjects sweep costs ~0.2 s; only when pawn
 INT_FIELDS = {HEALTH: 'health', HEALTH_MAX: 'health_max', TEAM_INDEX: 'team_index'}
 OBJECT_FIELDS = {CONTROLLER_PAWN: 'controller_pawn', CONTROLLER_PLAYER: 'controller_player',
                  PAWN_PRI: 'pawn_pri', PRI_TEAM: 'pri_team',
-                 PAWN_CONTROLLER: 'pawn_controller', CONTROLLER_PRI: 'controller_pri'}
+                 PAWN_CONTROLLER: 'pawn_controller', CONTROLLER_PRI: 'controller_pri',
+                 GAME: 'game'}
 WANTED = {
     'Health': ('IntProperty', INT_FIELDS),
     'HealthMax': ('IntProperty', INT_FIELDS),
@@ -45,6 +47,7 @@ WANTED = {
     'Player': ('ObjectProperty', OBJECT_FIELDS),
     'PlayerReplicationInfo': ('ObjectProperty', OBJECT_FIELDS),
     'Controller': ('ObjectProperty', OBJECT_FIELDS),
+    'Game': ('ObjectProperty', OBJECT_FIELDS),
     'Team': ('ObjectProperty', OBJECT_FIELDS),
     'TeamIndex': ('IntProperty', INT_FIELDS),
 }
@@ -102,6 +105,7 @@ class Fields:
         self.pawn_pri = found[PAWN_PRI]
         self.pawn_controller = found[PAWN_CONTROLLER]
         self.controller_pri = found[CONTROLLER_PRI]
+        self.game = found[GAME]
         self.pri_team = found[PRI_TEAM]
         self.team_index = found[TEAM_INDEX]
 
@@ -119,6 +123,10 @@ class Fields:
 
     def player_of(self, controller):
         return u32(self.bridge, controller + self.controller_player)
+
+    def game_of(self, world):
+        """The game info object of a world (0 when there is none yet)."""
+        return u32(self.bridge, world + self.game) if world > UINT32 else 0
 
     def team_of(self, pawn):
         """Team index of one pawn, or None when it has no replication info.
@@ -144,7 +152,7 @@ class Fields:
                 'controller_player': hex(self.controller_player),
                 'pawn_pri': hex(self.pawn_pri), 'pri_team': hex(self.pri_team),
                 'team_index': hex(self.team_index), 'pawn_controller': hex(self.pawn_controller),
-                'controller_pri': hex(self.controller_pri)}
+                'controller_pri': hex(self.controller_pri), 'game': hex(self.game)}
 
     @classmethod
     def wait(cls, bridge, timeout=3600.0, interval=2.0, on_wait=None):

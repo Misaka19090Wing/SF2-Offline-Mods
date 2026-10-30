@@ -16,9 +16,9 @@ sys.path.insert(0, str(HERE))
 
 from sf2mod import attach                      # noqa: E402
 from sf2mod.game import Fields, Player         # noqa: E402
-from sf2mod.regen import Regen, bot_targets                 # noqa: E402
+from sf2mod.regen import Regen, bot_targets, is_pve                 # noqa: E402
 
-VERSION = '1.1.2'
+VERSION = '1.2.0'
 DEFAULTS = {
     'enabled': True,
     'regen_delay_seconds': 4.0,
@@ -26,6 +26,7 @@ DEFAULTS = {
     'tick_hz': 10.0,
     'log_damage': True,
     'bots': False,               # heal living teammates with the same rule
+    'bots_pve_only': True,       # ... but only in the alien survival/defence modes
     'dry_run': False,
 }
 BOOT_GRACE = 3600.0
@@ -179,8 +180,12 @@ class Worker:
             return
         self.last_bot_scan = now
         origin = fields.team_of(self.pawn) if self.pawn else None
-        if origin is None:                       # no team yet (menu, loading): nobody
+        game = fields.game_of(player.world) if player.world else 0
+        kind = player.kind(game) if game else ''
+        pve = is_pve(kind)
+        if origin is None or (self.config['bots_pve_only'] and not pve):
             self.bot_regens.clear()
+            self.report_bots(now, origin, pve, kind, [], 0)
             return
         rows = []
         for address in player.actors():
@@ -192,7 +197,8 @@ class Worker:
             except OSError:
                 continue                         # actor vanished mid scan
         health_of = {row[0]: (row[2], row[3]) for row in rows}
-        for address in bot_targets(rows, self.pawn, origin):
+        targets = bot_targets(rows, self.pawn, origin)
+        for address in targets:
             health, maximum = health_of[address]
             state = self.bot_regens.get(address)
             if state is None:
@@ -214,13 +220,17 @@ class Worker:
         for address in list(self.bot_regens):    # forget pawns that left the map
             if address not in health_of:
                 del self.bot_regens[address]
-        if now - self.last_bot_report >= 10.0:   # why nothing healed, in the log itself
-            self.last_bot_report = now
-            self.log.emit('bots-scan', team=origin, pawns=len(rows),
-                          teammates=len(bot_targets(rows, self.pawn, origin)),
-                          bots=self.bots_healed,
-                          sample=[{'at': hex(address), 'team': team, 'health': health}
-                                  for address, team, health, _ in rows[:4]])
+        self.report_bots(now, origin, pve, kind, rows, len(targets))
+
+    def report_bots(self, now, team, pve, kind, rows, teammates):
+        """One line every 10 s: why the teammate pass did (or did not) heal anyone."""
+        if now - self.last_bot_report < 10.0:
+            return
+        self.last_bot_report = now
+        self.log.emit('bots-scan', team=team, pve=pve, mode=kind or None,
+                      pawns=len(rows), teammates=teammates, bots=self.bots_healed,
+                      sample=[{'at': hex(address), 'team': team_of, 'health': health}
+                              for address, team_of, health, _ in rows[:4]])
 
     def step(self, player, fields):
         now = time.monotonic()
