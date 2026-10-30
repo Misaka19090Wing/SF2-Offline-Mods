@@ -18,7 +18,7 @@ from sf2mod import attach                      # noqa: E402
 from sf2mod.game import Fields, Player         # noqa: E402
 from sf2mod.regen import Regen                 # noqa: E402
 
-VERSION = '1.1.0'
+VERSION = '1.1.1'
 DEFAULTS = {
     'enabled': True,
     'regen_delay_seconds': 4.0,
@@ -129,7 +129,7 @@ class Worker:
             self.log.emit('fatal', error=str(error))
             raise SystemExit(str(error))
         self.log.emit('fields', **fields.offsets())
-        player = Player(bridge, fields, on_event=log.emit)
+        player = Player(bridge, fields, on_event=self.log.emit)
         period = 1.0 / max(1.0, min(60.0, float(self.config['tick_hz'])))
         while True:
             if not attach.pid_alive(self.pid):
@@ -216,7 +216,10 @@ class Worker:
 
     def step(self, player, fields):
         now = time.monotonic()
-        self.step_bots(player, fields, now)
+        try:
+            self.step_bots(player, fields, now)
+        except Exception as error:       # noqa: BLE001 - the player's regen must not depend on this
+            self.log.emit('worker-error', where='bots', error=repr(error))
         pawn = player.find(now)
         if not pawn:
             if self.pawn:
