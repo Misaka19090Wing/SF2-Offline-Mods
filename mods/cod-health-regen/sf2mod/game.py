@@ -124,9 +124,31 @@ class Fields:
     def player_of(self, controller):
         return u32(self.bridge, controller + self.controller_player)
 
+    def world(self):
+        """The current UWorld*, read fresh (Player.actors() is not always run first)."""
+        value = u32(self.bridge, GWORLD)
+        return value if value > UINT32 else 0
+
+    def worldinfo(self, world):
+        """The AWorldInfo actor of a level.
+
+        `GWORLD` points at UWorld, which has no `Game` property: the pointer lives on
+        the level's first actor, the same shortcut the client's own tools use.
+        """
+        if world <= UINT32:
+            return 0
+        level = u32(self.bridge, world + LEVEL)
+        if level <= UINT32:
+            return 0
+        pointer, count, capacity = struct.unpack('<3I', self.bridge.read(level + ACTORS, 12))
+        if not 0 < count <= capacity < 100000:
+            return 0
+        return u32(self.bridge, pointer)
+
     def game_of(self, world):
         """The game info object of a world (0 when there is none yet)."""
-        return u32(self.bridge, world + self.game) if world > UINT32 else 0
+        info = self.worldinfo(world)
+        return u32(self.bridge, info + self.game) if info else 0
 
     def team_of(self, pawn):
         """Team index of one pawn, or None when it has no replication info.

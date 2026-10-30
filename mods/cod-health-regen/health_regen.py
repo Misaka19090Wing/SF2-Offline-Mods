@@ -18,7 +18,7 @@ from sf2mod import attach                      # noqa: E402
 from sf2mod.game import Fields, Player         # noqa: E402
 from sf2mod.regen import Regen, bot_targets, is_pve                 # noqa: E402
 
-VERSION = '1.2.0'
+VERSION = '1.2.1'
 DEFAULTS = {
     'enabled': True,
     'regen_delay_seconds': 4.0,
@@ -180,7 +180,8 @@ class Worker:
             return
         self.last_bot_scan = now
         origin = fields.team_of(self.pawn) if self.pawn else None
-        game = fields.game_of(player.world) if player.world else 0
+        world = fields.world()                   # not player.world: actors() has not run yet
+        game = fields.game_of(world)
         kind = player.kind(game) if game else ''
         pve = is_pve(kind)
         if origin is None or (self.config['bots_pve_only'] and not pve):
@@ -306,8 +307,12 @@ def main():
         player = Player(bridge, fields, on_event=log.emit)
         pawn = player.find()
         health, maximum = fields.read(pawn) if pawn else (None, None)
+        world = fields.world()
+        game = fields.game_of(world)
         print(json.dumps({'pid': bridge.pid, 'pawn': hex(pawn), 'health': health,
                           'health_max': maximum, 'via': player.via,
+                          'world': hex(world), 'game': hex(game),
+                          'mode': player.kind(game) if game else '',
                           'offsets': fields.offsets()}, ensure_ascii=False))
         bridge.close()
         return 0

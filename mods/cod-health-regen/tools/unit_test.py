@@ -200,6 +200,9 @@ class _Fields:
     def team_of(self, address):
         return self.teams.get(address)
 
+    def world(self):
+        return 0x1234
+
     def game_of(self, world):
         return 0x999
 
@@ -209,7 +212,7 @@ class _Fields:
 
 class _Player:
     def __init__(self, addresses, game_class='SFSurvivalGame_0'):
-        self.addresses, self.world, self.game_class = addresses, 0x1234, game_class
+        self.addresses, self.game_class = addresses, game_class
 
     def actors(self):
         return self.addresses
