@@ -28,19 +28,23 @@ HEALTH_MAX = 'Engine.Pawn.HealthMax'
 CONTROLLER_PAWN = 'Engine.Controller.Pawn'
 CONTROLLER_PLAYER = 'Engine.PlayerController.Player'
 PAWN_PRI = 'Engine.Pawn.PlayerReplicationInfo'
+PAWN_CONTROLLER = 'Engine.Pawn.Controller'
+CONTROLLER_PRI = 'Engine.Controller.PlayerReplicationInfo'
 PRI_TEAM = 'Engine.PlayerReplicationInfo.Team'
 TEAM_INDEX = 'Engine.TeamInfo.TeamIndex'
 OBJECT_SCAN_INTERVAL = 3.0  # a full GObjects sweep costs ~0.2 s; only when pawnless
 
 INT_FIELDS = {HEALTH: 'health', HEALTH_MAX: 'health_max', TEAM_INDEX: 'team_index'}
 OBJECT_FIELDS = {CONTROLLER_PAWN: 'controller_pawn', CONTROLLER_PLAYER: 'controller_player',
-                 PAWN_PRI: 'pawn_pri', PRI_TEAM: 'pri_team'}
+                 PAWN_PRI: 'pawn_pri', PRI_TEAM: 'pri_team',
+                 PAWN_CONTROLLER: 'pawn_controller', CONTROLLER_PRI: 'controller_pri'}
 WANTED = {
     'Health': ('IntProperty', INT_FIELDS),
     'HealthMax': ('IntProperty', INT_FIELDS),
     'Pawn': ('ObjectProperty', OBJECT_FIELDS),
     'Player': ('ObjectProperty', OBJECT_FIELDS),
     'PlayerReplicationInfo': ('ObjectProperty', OBJECT_FIELDS),
+    'Controller': ('ObjectProperty', OBJECT_FIELDS),
     'Team': ('ObjectProperty', OBJECT_FIELDS),
     'TeamIndex': ('IntProperty', INT_FIELDS),
 }
@@ -96,6 +100,8 @@ class Fields:
         self.controller_pawn = found[CONTROLLER_PAWN]
         self.controller_player = found[CONTROLLER_PLAYER]
         self.pawn_pri = found[PAWN_PRI]
+        self.pawn_controller = found[PAWN_CONTROLLER]
+        self.controller_pri = found[CONTROLLER_PRI]
         self.pri_team = found[PRI_TEAM]
         self.team_index = found[TEAM_INDEX]
 
@@ -122,6 +128,10 @@ class Fields:
         """
         pri = u32(self.bridge, pawn + self.pawn_pri)
         if pri < UINT32:
+            # AI pawns often carry the replication info on their controller only.
+            controller = u32(self.bridge, pawn + self.pawn_controller)
+            pri = u32(self.bridge, controller + self.controller_pri) if controller >= UINT32 else 0
+        if pri < UINT32:
             return None
         team = u32(self.bridge, pri + self.pri_team)
         if team < UINT32:
@@ -133,7 +143,8 @@ class Fields:
                 'controller_pawn': hex(self.controller_pawn),
                 'controller_player': hex(self.controller_player),
                 'pawn_pri': hex(self.pawn_pri), 'pri_team': hex(self.pri_team),
-                'team_index': hex(self.team_index)}
+                'team_index': hex(self.team_index), 'pawn_controller': hex(self.pawn_controller),
+                'controller_pri': hex(self.controller_pri)}
 
     @classmethod
     def wait(cls, bridge, timeout=3600.0, interval=2.0, on_wait=None):

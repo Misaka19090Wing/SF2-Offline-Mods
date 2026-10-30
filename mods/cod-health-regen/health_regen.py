@@ -16,9 +16,9 @@ sys.path.insert(0, str(HERE))
 
 from sf2mod import attach                      # noqa: E402
 from sf2mod.game import Fields, Player         # noqa: E402
-from sf2mod.regen import Regen                 # noqa: E402
+from sf2mod.regen import Regen, bot_targets                 # noqa: E402
 
-VERSION = '1.1.1'
+VERSION = '1.1.2'
 DEFAULTS = {
     'enabled': True,
     'regen_delay_seconds': 4.0,
@@ -89,6 +89,7 @@ class Worker:
         self.bots_healed = 0
         self.last_bot_log = 0.0
         self.last_bot_scan = 0.0
+        self.last_bot_report = 0.0
 
     # ------------------------------------------------------------------ attach
     def waiting_boot(self, error):
@@ -191,7 +192,7 @@ class Worker:
             except OSError:
                 continue                         # actor vanished mid scan
         health_of = {row[0]: (row[2], row[3]) for row in rows}
-        for address in regen.bot_targets(rows, self.pawn, origin):
+        for address in bot_targets(rows, self.pawn, origin):
             health, maximum = health_of[address]
             state = self.bot_regens.get(address)
             if state is None:
@@ -213,6 +214,13 @@ class Worker:
         for address in list(self.bot_regens):    # forget pawns that left the map
             if address not in health_of:
                 del self.bot_regens[address]
+        if now - self.last_bot_report >= 10.0:   # why nothing healed, in the log itself
+            self.last_bot_report = now
+            self.log.emit('bots-scan', team=origin, pawns=len(rows),
+                          teammates=len(bot_targets(rows, self.pawn, origin)),
+                          bots=self.bots_healed,
+                          sample=[{'at': hex(address), 'team': team, 'health': health}
+                                  for address, team, health, _ in rows[:4]])
 
     def step(self, player, fields):
         now = time.monotonic()

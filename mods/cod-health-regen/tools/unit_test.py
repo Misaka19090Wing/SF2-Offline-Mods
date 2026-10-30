@@ -170,6 +170,57 @@ def test_bot_targets():
     print('[OK ] bots: only living teammates are healed')
 
 
+def test_bots_pass_runs():
+    """step_bots must actually execute: a missing import there cost a game round trip."""
+    class Log:
+        def __init__(self):
+            self.events = []
+
+        def emit(self, event, **fields):
+            self.events.append((event, fields))
+
+    class Fields:
+        def __init__(self, rows, teams):
+            self.rows, self.teams = rows, teams
+            self.written = {}
+
+        def read(self, address):
+            return self.rows[address]
+
+        def team_of(self, address):
+            return self.teams.get(address)
+
+        def write(self, address, value):
+            self.written[address] = value
+
+    class Player:
+        def __init__(self, addresses):
+            self.addresses = addresses
+
+        def actors(self):
+            return self.addresses
+
+        def kind(self, address):
+            return 'SFPawn'
+
+    config = dict(health_regen.DEFAULTS, bots=True, dry_run=False,
+                  regen_delay_seconds=0.0, regen_per_second=50.0)
+    log = Log()
+    worker = health_regen.Worker(ROOT, config, log)
+    worker.pawn = 0xA6                       # the player's own pawn
+    fields = Fields({0xA1: (30, 100), 0xA2: (30, 100), 0xA6: (100, 100)},
+                    {0xA1: 0, 0xA2: 1, 0xA6: 0})
+    player = Player([0xA1, 0xA2, 0xA6])
+    worker.step_bots(player, fields, 1000.0)     # first tick only learns the state
+    worker.last_bot_scan = 0.0
+    worker.step_bots(player, fields, 1000.2)     # now it may write
+    assert 0xA1 in fields.written and fields.written[0xA1] > 30, fields.written
+    assert 0xA2 not in fields.written, 'the other team was healed'
+    assert 0xA6 not in fields.written, 'the player was healed by the bots pass'
+    assert any(event == 'regen-bot' for event, _ in log.events), log.events
+    print('[OK ] bots: step_bots heals a teammate and nobody else')
+
+
 def test_config_matches_defaults():
     config = json.loads((ROOT / 'config.json').read_text('utf-8'))
     assert set(config) == set(health_regen.DEFAULTS), 'config.json 与 DEFAULTS 的键必须一致'
