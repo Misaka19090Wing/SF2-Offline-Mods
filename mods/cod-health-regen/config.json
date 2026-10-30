@@ -4,5 +4,6 @@
   "regen_per_second": 25.0,
   "tick_hz": 10.0,
   "log_damage": true,
-  "dry_run": false
+  "dry_run": false,
+  "bots": false
 }

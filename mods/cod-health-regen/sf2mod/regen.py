@@ -9,6 +9,21 @@ it the local player's (Health, HealthMax) on every tick and writes back whatever
 MAX_PLAUSIBLE_HEALTH = 100000
 
 
+def bot_targets(rows, player_pawn, player_team):
+    """Live teammates worth healing.
+
+    rows: (address, team, health, maximum). The player's own pawn is excluded, and
+    an unknown player team means nobody: healing the other team -- or a PVE
+    monster, whose team is never the player's -- is worse than not healing at all.
+    """
+    if player_team is None:
+        return []
+    return [address for address, team, health, maximum in rows
+            if address != player_pawn and team == player_team
+            and health > 0 and 0 < maximum <= MAX_PLAUSIBLE_HEALTH
+            and health <= maximum]
+
+
 class Regen:
     """Regenerate health after `delay` seconds without damage.
 

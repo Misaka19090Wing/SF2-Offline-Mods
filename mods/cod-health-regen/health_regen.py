@@ -18,16 +18,18 @@ from sf2mod import attach                      # noqa: E402
 from sf2mod.game import Fields, Player         # noqa: E402
 from sf2mod.regen import Regen                 # noqa: E402
 
-VERSION = '1.0.2'
+VERSION = '1.1.0'
 DEFAULTS = {
     'enabled': True,
     'regen_delay_seconds': 4.0,
     'regen_per_second': 25.0,
     'tick_hz': 10.0,
     'log_damage': True,
+    'bots': False,               # heal living teammates with the same rule
     'dry_run': False,
 }
-BOOT_GRACE = 3600.0      # the client needs a while before GObjects is readable
+BOOT_GRACE = 3600.0
+BOT_SCAN_SECONDS = 0.5   # shortcut: teammates are scanned twice a second, raise if they ever feel laggy      # the client needs a while before GObjects is readable
 REGEN_LOG_INTERVAL = 1.0
 
 
@@ -83,6 +85,10 @@ class Worker:
         self.read_errors = 0
         self.last_read_error = 0.0
         self.dead = False
+        self.bot_regens = {}
+        self.bots_healed = 0
+        self.last_bot_log = 0.0
+        self.last_bot_scan = 0.0
 
     # ------------------------------------------------------------------ attach
     def waiting_boot(self, error):
@@ -114,7 +120,7 @@ class Worker:
                       mode='dry' if self.dry else 'run', enabled=self.config['enabled'],
                       regen_delay_seconds=self.config['regen_delay_seconds'],
                       regen_per_second=self.config['regen_per_second'],
-                      tick_hz=self.config['tick_hz'])
+                      tick_hz=self.config['tick_hz'], bots=self.config['bots'])
         bridge = self.attach(wait=0.0 if self.pid else 60.0)
         try:
             # GObjects is empty for a while after start-up: keep waiting, do not die.
@@ -123,7 +129,7 @@ class Worker:
             self.log.emit('fatal', error=str(error))
             raise SystemExit(str(error))
         self.log.emit('fields', **fields.offsets())
-        player = Player(bridge, fields, on_event=self.log.emit)
+        player = Player(bridge, fields, on_event=log.emit)
         period = 1.0 / max(1.0, min(60.0, float(self.config['tick_hz'])))
         while True:
             if not attach.pid_alive(self.pid):
@@ -164,8 +170,53 @@ class Worker:
         self.log.emit('no-pawn', seconds=round(now - self.no_pawn_since, 1),
                       **player.summary())
 
+    def step_bots(self, player, fields, now):
+        """Heal teammates with the same delay/rate; only this life's own pawn is fed."""
+        if not self.config['bots'] or not self.config['enabled']:
+            return
+        if now - self.last_bot_scan < BOT_SCAN_SECONDS:
+            return
+        self.last_bot_scan = now
+        origin = fields.team_of(self.pawn) if self.pawn else None
+        if origin is None:                       # no team yet (menu, loading): nobody
+            self.bot_regens.clear()
+            return
+        rows = []
+        for address in player.actors():
+            try:
+                if 'Pawn' not in player.kind(address):
+                    continue
+                health, maximum = fields.read(address)
+                rows.append((address, fields.team_of(address), health, maximum))
+            except OSError:
+                continue                         # actor vanished mid scan
+        health_of = {row[0]: (row[2], row[3]) for row in rows}
+        for address in regen.bot_targets(rows, self.pawn, origin):
+            health, maximum = health_of[address]
+            state = self.bot_regens.get(address)
+            if state is None:
+                state = self.bot_regens[address] = Regen(self.config['regen_delay_seconds'],
+                                                         self.config['regen_per_second'])
+            target = state.update(now, health, maximum)
+            if target is None:
+                continue
+            if not self.dry:
+                try:
+                    fields.write(address, target)
+                except OSError:
+                    continue
+            self.bots_healed += 1
+            if now - self.last_bot_log >= REGEN_LOG_INTERVAL:
+                self.last_bot_log = now
+                self.log.emit('regen-bot', bot=hex(address), health=target,
+                              max=maximum, bots=self.bots_healed, dry=self.dry)
+        for address in list(self.bot_regens):    # forget pawns that left the map
+            if address not in health_of:
+                del self.bot_regens[address]
+
     def step(self, player, fields):
         now = time.monotonic()
+        self.step_bots(player, fields, now)
         pawn = player.find(now)
         if not pawn:
             if self.pawn:
@@ -231,7 +282,7 @@ def main():
     if args.once:
         bridge = Worker(game, config, log, args.pid, dry=True).attach(wait=60.0)
         fields = Fields.wait(bridge, timeout=60.0)
-        player = Player(bridge, fields, on_event=self.log.emit)
+        player = Player(bridge, fields, on_event=log.emit)
         pawn = player.find()
         health, maximum = fields.read(pawn) if pawn else (None, None)
         print(json.dumps({'pid': bridge.pid, 'pawn': hex(pawn), 'health': health,

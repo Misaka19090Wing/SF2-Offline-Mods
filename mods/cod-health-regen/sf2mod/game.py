@@ -27,15 +27,22 @@ HEALTH = 'Engine.Pawn.Health'
 HEALTH_MAX = 'Engine.Pawn.HealthMax'
 CONTROLLER_PAWN = 'Engine.Controller.Pawn'
 CONTROLLER_PLAYER = 'Engine.PlayerController.Player'
+PAWN_PRI = 'Engine.Pawn.PlayerReplicationInfo'
+PRI_TEAM = 'Engine.PlayerReplicationInfo.Team'
+TEAM_INDEX = 'Engine.TeamInfo.TeamIndex'
 OBJECT_SCAN_INTERVAL = 3.0  # a full GObjects sweep costs ~0.2 s; only when pawnless
 
-INT_FIELDS = {HEALTH: 'health', HEALTH_MAX: 'health_max'}
-OBJECT_FIELDS = {CONTROLLER_PAWN: 'controller_pawn', CONTROLLER_PLAYER: 'controller_player'}
+INT_FIELDS = {HEALTH: 'health', HEALTH_MAX: 'health_max', TEAM_INDEX: 'team_index'}
+OBJECT_FIELDS = {CONTROLLER_PAWN: 'controller_pawn', CONTROLLER_PLAYER: 'controller_player',
+                 PAWN_PRI: 'pawn_pri', PRI_TEAM: 'pri_team'}
 WANTED = {
     'Health': ('IntProperty', INT_FIELDS),
     'HealthMax': ('IntProperty', INT_FIELDS),
     'Pawn': ('ObjectProperty', OBJECT_FIELDS),
     'Player': ('ObjectProperty', OBJECT_FIELDS),
+    'PlayerReplicationInfo': ('ObjectProperty', OBJECT_FIELDS),
+    'Team': ('ObjectProperty', OBJECT_FIELDS),
+    'TeamIndex': ('IntProperty', INT_FIELDS),
 }
 
 
@@ -88,6 +95,9 @@ class Fields:
         self.health_max = found[HEALTH_MAX]
         self.controller_pawn = found[CONTROLLER_PAWN]
         self.controller_player = found[CONTROLLER_PLAYER]
+        self.pawn_pri = found[PAWN_PRI]
+        self.pri_team = found[PRI_TEAM]
+        self.team_index = found[TEAM_INDEX]
 
     def read(self, pawn):
         """(health, health_max) of one pawn."""
@@ -104,10 +114,26 @@ class Fields:
     def player_of(self, controller):
         return u32(self.bridge, controller + self.controller_player)
 
+    def team_of(self, pawn):
+        """Team index of one pawn, or None when it has no replication info.
+
+        None is not 0: a pawn without a PRI (a PVE monster, a spectator) must never
+        be mistaken for a member of the player's team.
+        """
+        pri = u32(self.bridge, pawn + self.pawn_pri)
+        if pri < UINT32:
+            return None
+        team = u32(self.bridge, pri + self.pri_team)
+        if team < UINT32:
+            return None
+        return struct.unpack('<i', self.bridge.read(team + self.team_index, 4))[0]
+
     def offsets(self):
         return {'health': hex(self.health), 'max': hex(self.health_max),
                 'controller_pawn': hex(self.controller_pawn),
-                'controller_player': hex(self.controller_player)}
+                'controller_player': hex(self.controller_player),
+                'pawn_pri': hex(self.pawn_pri), 'pri_team': hex(self.pri_team),
+                'team_index': hex(self.team_index)}
 
     @classmethod
     def wait(cls, bridge, timeout=3600.0, interval=2.0, on_wait=None):
@@ -194,6 +220,10 @@ class Player:
         except OSError:
             return False
         return 0 < maximum <= MAX_PLAUSIBLE_HEALTH
+
+    def kind(self, address):
+        """Class name of one actor ('' when unreadable)."""
+        return self._kind(address)
 
     def _kind(self, address):
         """Class name of one UObject, or '' when it cannot be read."""

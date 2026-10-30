@@ -13,7 +13,7 @@ ROOT = HERE.parent
 sys.path.insert(0, str(ROOT))
 
 from sf2mod.game import Fields                      # noqa: E402
-from sf2mod.regen import Regen                     # noqa: E402
+from sf2mod.regen import Regen, bot_targets        # noqa: E402
 import health_regen                                # noqa: E402
 
 
@@ -149,6 +149,25 @@ def test_boot_wait_retries_instead_of_dying():
     assert 'Engine.Pawn.Health' in message, '属性缺失必须最终报错，不能静默'
     assert bridge.calls >= 3, '开机期必须重试'
     assert time.monotonic() - started < 2.0, '不能无限等待'
+
+
+def test_bot_targets():
+    """Only living teammates are healed; the player and unknown teams are not."""
+    rows = [
+        (0xA1, 0, 80, 100),     # teammate, hurt        -> heal
+        (0xA2, 1, 80, 100),     # enemy                 -> no
+        (0xA3, None, 80, 100),  # no PRI (PVE monster)  -> no
+        (0xA4, 0, 0, 100),      # teammate but dead     -> no
+        (0xA5, 0, 50, 0),       # bad reflection        -> no
+        (0xA7, 0, 120, 100),    # health above max      -> no
+        (0xA6, 0, 40, 100),     # player's own pawn     -> no
+    ]
+    picked = bot_targets(rows, player_pawn=0xA6, player_team=0)
+    assert picked == [0xA1], picked
+    assert bot_targets(rows, player_pawn=0xA6, player_team=None) == []
+    assert bot_targets(rows, player_pawn=0xA6, player_team=1) == [0xA2]
+    assert bot_targets([], player_pawn=0xA6, player_team=0) == []
+    print('[OK ] bots: only living teammates are healed')
 
 
 def test_config_matches_defaults():
