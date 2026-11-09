@@ -2,6 +2,8 @@
 logs/
 worker.json
 *.zip
+# 自带解释器的标准库必须进仓库（上面的 *.zip 只是排除发布包）
+!mods/*/python/python312.zip
 
 # Python
 __pycache__/
