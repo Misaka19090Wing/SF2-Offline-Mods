@@ -8,7 +8,6 @@
 | [cod-health-regen](mods/cod-health-regen/) | 1.3.0 | 类 CoD 呼吸回血：受伤后停几秒自动回满 | 否 |
 | [corpse-flinch](mods/corpse-flinch/) | 1.11.2 | 子弹 / 近战 / 飞斧把尸体真的打飞，方向力度来自游戏自己算出的命中 | 是，与原生 AI worker 分时让位 |
 | [corpse-limit](mods/corpse-limit/) | 1.1.0 | 控制尸体存在时长、距离玩家多远的清掉、地图上最多留几具 | 否 |
-| [lobby-resolution](mods/lobby-resolution/) | 1.0.0 | 把大厅（前端）窗口调到你指定的分辨率，默认 1920×1080 | 否 |
 
 ## 来源与许可
 
