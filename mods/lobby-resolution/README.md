@@ -13,6 +13,18 @@
 | `lobby_only` | `true` | 只在大厅（前端）生效；`false` = 任何界面尺寸不符就调 |
 | `poll_seconds` | `2.0` | 检查间隔；游戏把窗口改回去时会被重新调大 |
 
+## 现状（R10，2026-11-09）：目前无效，原因已查清
+
+- **窗口调不动**：大厅窗口是 `WS_CAPTION | WS_BORDER`、**没有 `WS_THICKFRAME`**（所以拖不动），
+  客户区固定 1024×768。`SetWindowPos` 能改，但引擎在一帧内改回去——实测日志里
+  `before` 永远是 `[1024,768]`。
+- **游戏自己的开关**：`SFPlayerController.SetVideoSettingForLobby`，但它是 8 个参数的脚本函数
+  （`ResX, ResY, bLobbyFullScreen, bInitialLobbyLoaded, GammaValue, AdvanceSetting, ScaleLevel, Profile`），
+  用不完整的参数帧调用会让游戏 `Fatal error 0x48bf2d` 崩溃（实测），所以本 mod 不采用。
+
+**结论**：大厅分辨率由引擎的 `SystemSettings` 强制，R10 没有安全的修改入口。本 mod 保留窗口探测与日志，
+在不锁分辨率的客户端（R6–R9？未验证）上仍可能生效；R10 上请当它不存在。
+
 ## 原理
 
 只调 **Win32 窗口**：用 `EnumWindows` 找到游戏主窗口，`SetWindowPos` 把**客户区**改成
