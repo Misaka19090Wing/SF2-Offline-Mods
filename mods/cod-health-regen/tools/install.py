@@ -1,6 +1,6 @@
 """Install into a game root (or the developer workspace) and write the launcher.
 
-    runtime\\python\\python.exe -X utf8 -B tools\\install.py [--game <root>] [--no-selftest]
+    python\\python.exe -X utf8 -B tools\\install.py [--game <root>] [--no-selftest]
 
 Copies this folder to <root>\\mods\\cod-health-regen when it is not already there,
 writes <root>\\启动-回血模式.cmd, then runs the read-only selftest.  Changes no game
@@ -23,10 +23,10 @@ LAUNCHER = '''@echo off
 setlocal
 set MOD=%~dp0mods\\cod-health-regen
 if not exist "%MOD%\\tools\\launch.py" exit /b 1
-start "" "{python}" -X utf8 -B "%MOD%\\tools\\launch.py"
+start "" "%MOD%\\python\\pythonw.exe" -X utf8 -B "%MOD%\\tools\\launch.py"
 '''
 # The manifest ships with the mod: the installed copy must stay verifiable.
-IGNORE = shutil.ignore_patterns('logs', '__pycache__', '*.pyc', '*.zip')
+IGNORE = shutil.ignore_patterns('logs', '__pycache__', '*.pyc', 'cod-health-regen-*.zip')
 
 
 def copy_mod(target):
@@ -42,15 +42,12 @@ def copy_mod(target):
 
 
 def write_launcher(game):
-    python = game / 'runtime' / 'python' / 'pythonw.exe'
+    # The mod carries its own interpreter: R10 seals the client's python.
+    python = MOD / 'python' / 'pythonw.exe'
     if not python.is_file():
-        python = game / 'runtime' / 'python' / 'python.exe'
-    if not python.is_file():
-        raise SystemExit('找不到客户端自带的 Python：' + str(game / 'runtime' / 'python'))
-    relative = Path('runtime') / 'python' / python.name
+        raise SystemExit('mod 自带的 Python 缺失：' + str(MOD / 'python'))
     launcher = game / '启动-回血模式.cmd'
-    launcher.write_text(LAUNCHER.replace('{python}', str(Path('%~dp0') / relative)),
-                        encoding='ascii')
+    launcher.write_text(LAUNCHER, encoding='ascii')
     return launcher
 
 
@@ -72,7 +69,7 @@ def main():
     if args.no_selftest:
         return 0
     print('--- 只读自检（不写入游戏）', flush=True)
-    python = game / 'runtime' / 'python' / 'python.exe'
+    python = MOD / 'python' / 'python.exe'
     return subprocess.run([str(python), '-I', '-X', 'utf8', '-B',
                            str(target / 'tools' / 'selftest.py'), '--game', str(game)],
                           cwd=str(game)).returncode

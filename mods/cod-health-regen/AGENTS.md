@@ -9,7 +9,9 @@
 ```
 health_regen.py        CLI + Worker：连接、主循环、日志、异常兜底
 config.json            全部可调参数（用户唯一需要改的文件）
-sf2mod/attach.py       找游戏目录/进程、导入客户端自带 Bridge、读写句柄（不装钩子）
+sf2mod/attach.py       找游戏目录/进程、读写句柄（不装钩子）
+sf2mod/reader.py       自带的 UE3 读写器（R10 封印后不再 import 客户端模块）
+python/                mod 自带的精简 CPython 3.12（安装与运行都用它）
 sf2mod/game.py         地址常量、Health/HealthMax 偏移的反射解析、本地玩家查找
 sf2mod/regen.py        纯回血状态机（无游戏访问，离线单测）
 tools/install.py       安装 + 写启动器 + 只读自检
@@ -27,14 +29,14 @@ docs/00..02            文档
 ## 2. 不变量（违反即不可发布）
 
 1. **不改游戏文件、不写注册表、不装服务、不打代码补丁**。唯一写入是 `Pawn.Health` 这个 int。
-2. **只碰本地玩家**（`APlayerController.Player != 0` 的那个 pawn）。机器人、怪物、英雄 bot 的血量一律不碰——它们由 AI/模式逻辑管，改了就破坏"英雄 bot 低血量不撤退、不突然满血"这条已有约束。
+2. **玩家永远回血；机器人只在 `bots` 打开时回**，且只回"与玩家同队"的活人（敌人、异形怪、无 PRI 的单位一律不碰）。`bots_pve_only`（默认 true）把机器人回血限制在异形 PVE。
 3. **`Health <= 0` 时绝不写入**，永不复活。死亡/换图由 worker 的重置路径处理。
 4. **只增不减、永不超上限**。读数不合理（`HealthMax <= 0`、`> 100000`、`Health > HealthMax`）时宁可不写。
 5. **每个 tick 独立 `try`**：`OSError` 跳过本 tick；其他异常写 `worker-error` 后继续，不允许裸 `except: pass`。
 6. **配置项三处一致**：`config.json` 的键 = `health_regen.DEFAULTS` 的键（单测检查），并在 `README.md` 的参数表里说明；未知键直接拒绝启动。
 7. **日志单行 JSON**，新增事件必须写进 `docs/02-日志字段.md`。
 8. **`.cmd` 纯 ASCII**（cmd.exe 用 OEM 代码页，中文会变成"不是内部或外部命令"）；中文提示放 Python。
-9. **不引入第三方依赖**。只用标准库 + 客户端自带 Python。
+9. **不引入第三方依赖**。只用标准库；解释器用 mod 自带的 `python/`（R10 起客户端自带 Python 被 `sf2guard` 封印，不能再用）。
 10. **改完重新生成清单**：`runtime\python\python.exe -X utf8 -B tools\build_manifest.py`，否则 `--check` 会报"被改"。
 
 ## 3. 陷阱

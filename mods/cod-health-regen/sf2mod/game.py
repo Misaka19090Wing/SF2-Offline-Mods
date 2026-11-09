@@ -68,7 +68,7 @@ def refresh_names(bridge):
     client where a *fresh* process resolved the offsets instantly. The shipped
     `NativeAPI.refresh()` clears the same two caches for the same reason.
     """
-    from inspect_battle_runtime import NAMES
+    from sf2mod.reader import NAMES
     pointer, count, capacity = struct.unpack('<3I', bridge.read(NAMES, 12))
     if not 0 < count <= capacity < 2000000:
         raise ValueError('Unexpected native name table')

@@ -1,6 +1,6 @@
 """Stop the worker and remove the launcher.
 
-    runtime\\python\\python.exe -X utf8 -B tools\\uninstall.py [--game <root>] [--purge]
+    python\\python.exe -X utf8 -B tools\\uninstall.py [--game <root>] [--purge]
 
 Never touches the game itself: the mod only ever wrote its own folder, its logs and
 the 启动-尸体清理.cmd next to the game launcher.

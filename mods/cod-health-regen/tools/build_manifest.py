@@ -1,8 +1,8 @@
 """Write or check the integrity manifest, optionally build a zip.
 
-    runtime\\python\\python.exe -X utf8 -B tools\\build_manifest.py          # write MANIFEST.sha256
-    runtime\\python\\python.exe -X utf8 -B tools\\build_manifest.py --check  # verify (exit 1 on drift)
-    runtime\\python\\python.exe -X utf8 -B tools\\build_manifest.py --zip cod-health-regen-1.0.0.zip
+    python\\python.exe -X utf8 -B tools\\build_manifest.py          # write MANIFEST.sha256
+    python\\python.exe -X utf8 -B tools\\build_manifest.py --check  # verify (exit 1 on drift)
+    python\\python.exe -X utf8 -B tools\\build_manifest.py --zip cod-health-regen-1.0.0.zip
 """
 import argparse
 import hashlib
@@ -14,7 +14,9 @@ HERE = Path(__file__).resolve().parent
 MOD = HERE.parent
 MANIFEST = MOD / 'MANIFEST.sha256'
 EXCLUDE = {'logs', '__pycache__'}
-SKIP_SUFFIX = ('.pyc', '.zip')
+SKIP_SUFFIX = ('.pyc',)
+# python/ python312.zip IS part of the mod; only the mod's own release zips are skipped.
+SKIP_NAMES = ('MANIFEST.sha256',)
 
 
 def digest(path):
@@ -31,6 +33,8 @@ def files():
             continue
         relative = path.relative_to(MOD)
         if any(part in EXCLUDE for part in relative.parts) or path.suffix in SKIP_SUFFIX:
+            continue
+        if relative.name in SKIP_NAMES or relative.name.startswith('cod-health-regen-'):
             continue
         yield relative
 

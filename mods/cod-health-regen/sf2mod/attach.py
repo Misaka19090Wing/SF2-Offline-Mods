@@ -6,10 +6,10 @@ writes Health back. So there is no code patch, no remote allocation and no main
 thread requirement -- which is also why it can coexist with an AI worker that has
 already installed the shipped bridge.
 
-Everything version specific is left to the client's own runtime:
-
-    <game>\\runtime\\tools\\local_battle_bridge.py   Bridge/Reader (EXE hash locked)
-    <game>\\tools\\runtime\\local_battle_bridge.py   same file in a developer tree
+The memory reader is built in (`sf2mod.reader`), NOT imported from the client: R10
+seals the client runtime (its `local_battle_bridge.py` is a one-line stub) and its
+bundled python refuses any script outside the signed manifest. Only two static
+offsets and the `sf2.exe` hash are version specific; both are in `reader.py`.
 
 Both layouts are supported: the mod ships into `mods\\<name>` of either a portable
 game root or the developer workspace.
@@ -20,6 +20,8 @@ import os
 import sys
 import time
 from pathlib import Path
+
+from sf2mod.reader import Reader
 
 MARKERS = (('runtime', 'tools', 'local_battle_bridge.py'),
            ('tools', 'runtime', 'local_battle_bridge.py'))
@@ -42,20 +44,6 @@ def layout(game):
     return 'portable' if (Path(game) / 'runtime/tools/local_battle_bridge.py').is_file() else 'developer'
 
 
-def load_runtime(game):
-    """Import the client's own bridge/reader, which is what locks the version."""
-    game = Path(game).resolve()
-    folders = [game / 'runtime', game / 'runtime/tools', game / 'runtime/tools/python-deps'] \
-        if layout(game) == 'portable' else \
-        [game / 'tools/runtime', game / 'src/runtime', game / 'tools']
-    for folder in folders:
-        text = str(folder)
-        if folder.is_dir() and text not in sys.path:
-            sys.path.insert(0, text)
-    import local_battle_bridge as battle          # noqa: E402  (client runtime)
-    return battle
-
-
 def client_exe(game):
     """The binary this install is pinned to; the launcher knows best.
 
@@ -65,11 +53,12 @@ def client_exe(game):
     """
     game = Path(game).resolve()
     try:
+        # R10's start_local_client.py is a sealed stub that raises SystemExit.
         import start_local_client as launcher
         exe = Path(launcher.EXE).resolve()
         if game in exe.parents:
             return exe
-    except Exception:                                # noqa: BLE001 - fallback only
+    except BaseException:                            # noqa: BLE001 - fallback only
         pass
     root = game / 'runtime' if layout(game) == 'portable' else game
     return (root / 'test-client/Binaries/Win32/sf2.exe').resolve()
@@ -151,5 +140,4 @@ def find_pid(game, timeout=0.0):
 
 def connect(game, pid):
     """Read/write handle on the client. Raises while the client is still booting."""
-    battle = load_runtime(game)
-    return battle.Bridge(pid)
+    return Reader(pid, client_exe(game))

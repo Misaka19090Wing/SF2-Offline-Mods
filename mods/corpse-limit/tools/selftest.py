@@ -1,6 +1,6 @@
 """Read-only check: attach, resolve fields, count corpses. Writes nothing.
 
-    runtime\\python\\python.exe -X utf8 -B tools\\selftest.py [--game <root>]
+    python\\python.exe -X utf8 -B tools\\selftest.py [--game <root>]
 """
 import sys
 from pathlib import Path

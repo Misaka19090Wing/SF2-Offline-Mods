@@ -4,7 +4,7 @@ Writes nothing to the game. Run it before play to confirm the client version and
 the property layout still match; it never installs a ProcessEvent hook, so unlike
 corpse-flinch's selftest it is safe on a client whose bridge is already patched.
 
-    runtime\\python\\python.exe -X utf8 -B tools\\selftest.py --game <game root>
+    python\\python.exe -X utf8 -B tools\\selftest.py --game <game root>
 """
 import argparse
 import json

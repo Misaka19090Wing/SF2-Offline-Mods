@@ -5,9 +5,9 @@
 
 | Mod | 版本 | 作用 | 需要 ProcessEvent 钩子 |
 | --- | --- | --- | --- |
-| [cod-health-regen](mods/cod-health-regen/) | 1.0.2 | 类 CoD 呼吸回血：受伤后停几秒自动回满 | 否 |
+| [cod-health-regen](mods/cod-health-regen/) | 1.3.0 | 类 CoD 呼吸回血：受伤后停几秒自动回满 | 否 |
 | [corpse-flinch](mods/corpse-flinch/) | 1.11.2 | 子弹 / 近战 / 飞斧把尸体真的打飞，方向力度来自游戏自己算出的命中 | 是，与原生 AI worker 分时让位 |
-| [corpse-limit](mods/corpse-limit/) | 1.0.1 | 控制尸体存在时长、距离玩家多远的清掉、地图上最多留几具 | 否 |
+| [corpse-limit](mods/corpse-limit/) | 1.1.0 | 控制尸体存在时长、距离玩家多远的清掉、地图上最多留几具 | 否 |
 
 ## 来源与许可
 
@@ -42,5 +42,11 @@ worker 在后台运行，游戏关闭后自行退出。
 
 ## 适用版本
 
-离线客户端需自带 `runtime\tools\local_battle_bridge.py`（R6 及之后）。换版本后偏移可能变，
-各 mod 的 `docs/` 里写了解析方式和重测步骤。
+| 客户端 | 说明 |
+| --- | --- |
+| R6 – R9 | 装 `mods\<名字>` 后双击 `安装.cmd` 即可 |
+| R10 及之后（sealed） | 客户端运行时被封印（`runtime/*.py` 都是占位文件，自带 python 只运行签名清单里的脚本），所以 mod 从 1.3.0 / 1.1.0 起**自带精简 Python（`python/`，约 10 MB）和自带内存读取器**，不依赖客户端的任何 Python 文件，也不修改封印文件。`sf2.exe` 在 R6–R10 之间哈希未变，偏移仍然成立。 |
+
+corpse-flinch 在 R10 已由作者内置，R10 上不要再装本仓库那份（它需要客户端的 `local_battle_bridge`）。
+
+换版本后偏移可能变，各 mod 的 `docs/` 里写了解析方式和重测步骤。

@@ -22,7 +22,7 @@ sys.path.insert(0, str(HERE))
 from sf2mod import attach, limit                      # noqa: E402
 from sf2mod.game import Fields, Player                # noqa: E402
 
-VERSION = '1.0.1'
+VERSION = '1.1.0'
 DEFAULTS = {
     'enabled': True,
     'lifetime_seconds': 60.0,      # 0 = never retire on age

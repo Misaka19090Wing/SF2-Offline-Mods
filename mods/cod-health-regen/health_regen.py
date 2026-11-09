@@ -18,7 +18,7 @@ from sf2mod import attach                      # noqa: E402
 from sf2mod.game import Fields, Player         # noqa: E402
 from sf2mod.regen import Regen, bot_targets, is_pve                 # noqa: E402
 
-VERSION = '1.2.1'
+VERSION = '1.3.0'
 DEFAULTS = {
     'enabled': True,
     'regen_delay_seconds': 4.0,

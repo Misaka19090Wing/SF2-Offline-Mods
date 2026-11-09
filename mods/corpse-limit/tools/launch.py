@@ -1,6 +1,6 @@
 """Start the client when needed, then the corpse-limit worker in the background.
 
-    runtime\\python\\python.exe -X utf8 -B tools\\launch.py
+    python\\python.exe -X utf8 -B tools\\launch.py
 
 The worker is started detached with pythonw, so closing this script does not stop
 it; it exits by itself when the game process disappears (logs\\worker.json).
@@ -55,7 +55,9 @@ def worker_for(game_pid):
 
 def start_worker(game, pid):
     LOGS.mkdir(parents=True, exist_ok=True)
-    python = game / 'runtime' / 'python' / 'pythonw.exe'
+    python = MOD / 'python' / 'pythonw.exe'      # bundled: R10 seals the client's python
+    if not python.is_file():
+        python = game / 'runtime' / 'python' / 'pythonw.exe'
     if not python.is_file():
         python = game / 'runtime' / 'python' / 'python.exe'
     with (LOGS / 'worker-console.log').open('a', encoding='utf-8') as error:

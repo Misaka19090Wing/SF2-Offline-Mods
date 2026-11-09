@@ -18,7 +18,11 @@
 
 三个需求都归约成"让这具尸体立刻消失"，而 UE3 引擎本身就会按 `Engine.Actor.LifeSpan`
 倒计时销毁 actor。mod 把该值写成 0.0001，下一次世界 tick 引擎自己调用 `Destroy()`。
-全程没有 ProcessEvent 调用、没有钩子，所以：
+全程没有 ProcessEvent 调用、没有钩子。
+
+R10 起客户端运行时被封印（`runtime/` 下的 `.py` 都是占位文件，自带的 python 只允许运行签名清单里的脚本），
+所以本 mod **自带精简 Python（`python/`，约 10 MB）和自带内存读取器（`sf2mod/reader.py`）**，
+不依赖客户端的任何 Python 文件，也不修改游戏的封印文件。，所以：
 
 - 不需要和任何 AI worker 抢 `0x6008D0`（爆破/刀战/PVE 都能同时开）；
 - 可以和回血 mod、鞭尸 mod 同时使用。
